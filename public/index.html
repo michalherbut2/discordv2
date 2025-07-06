@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord v2</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #36393f;
+            color: #dcddde;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background: #2f3136;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #202225;
+        }
+
+        .server-info {
+            padding: 12px 16px;
+            border-bottom: 1px solid #202225;
+            font-weight: 600;
+            background: #202225;
+        }
+
+        .channels-section {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 0;
+        }
+
+        .channel-category {
+            color: #8e9297;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            padding: 16px 16px 8px;
+            letter-spacing: 0.02em;
+        }
+
+        .channel-list {
+            list-style: none;
+        }
+
+        .channel-item {
+            padding: 6px 16px;
+            margin: 1px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: background 0.1s;
+        }
+
+        .channel-item:hover {
+            background: #3a3c43;
+        }
+
+        .channel-item.active {
+            background: #5865f2;
+        }
+
+        .channel-icon {
+            margin-right: 8px;
+            opacity: 0.6;
+        }
+
+        .add-channel-btn {
+            background: none;
+            border: none;
+            color: #8e9297;
+            cursor: pointer;
+            padding: 6px 16px;
+            text-align: left;
+            font-size: 14px;
+            transition: color 0.1s;
+        }
+
+        .add-channel-btn:hover {
+            color: #dcddde;
+        }
+
+        /* User area */
+        .user-area {
+            padding: 8px;
+            background: #292b2f;
+            border-top: 1px solid #202225;
+            display: flex;
+            align-items: center;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .user-info {
+            flex: 1;
+        }
+
+        .username {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .user-status {
+            font-size: 12px;
+            color: #8e9297;
+        }
+
+        /* Main content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .channel-header {
+            height: 48px;
+            background: #36393f;
+            border-bottom: 1px solid #202225;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+        }
+
+        .channel-name {
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .channel-description {
+            color: #8e9297;
+            font-size: 14px;
+            margin-left: 8px;
+        }
+
+        /* Messages area */
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .message {
+            margin-bottom: 16px;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 12px;
+        }
+
+        .message-content {
+            flex: 1;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .message-author {
+            font-weight: 600;
+            margin-right: 8px;
+        }
+
+        .message-timestamp {
+            font-size: 12px;
+            color: #8e9297;
+        }
+
+        .message-text {
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        /* Input area */
+        .input-container {
+            padding: 16px;
+            background: #36393f;
+        }
+
+        .message-input {
+            width: 100%;
+            background: #40444b;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #dcddde;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+        }
+
+        .message-input::placeholder {
+            color: #8e9297;
+        }
+
+        /* Users list */
+        .users-panel {
+            width: 200px;
+            background: #2f3136;
+            border-left: 1px solid #202225;
+            padding: 16px 0;
+        }
+
+        .users-section {
+            margin-bottom: 24px;
+        }
+
+        .users-title {
+            color: #8e9297;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            padding: 0 16px 8px;
+            letter-spacing: 0.02em;
+        }
+
+        .user-item {
+            padding: 4px 16px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .user-item:hover {
+            background: #3a3c43;
+        }
+
+        .user-item-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .user-item-name {
+            font-size: 14px;
+            flex: 1;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-left: 8px;
+        }
+
+        .status-online { background: #3ba55c; }
+        .status-away { background: #faa61a; }
+        .status-busy { background: #ed4245; }
+        .status-offline { background: #747f8d; }
+
+        /* Login modal */
+        .login-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .login-form {
+            background: #36393f;
+            padding: 32px;
+            border-radius: 8px;
+            width: 400px;
+            max-width: 90%;
+        }
+
+        .login-title {
+            text-align: center;
+            margin-bottom: 24px;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #8e9297;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            background: #40444b;
+            border: none;
+            border-radius: 4px;
+            color: #dcddde;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .form-button {
+            width: 100%;
+            padding: 12px;
+            background: #5865f2;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .form-button:hover {
+            background: #4752c4;
+        }
+
+        /* Typing indicator */
+        .typing-indicator {
+            padding: 8px 16px;
+            font-size: 14px;
+            color: #8e9297;
+            font-style: italic;
+        }
+
+        /* Scrollbar styling */
+        .messages-container::-webkit-scrollbar,
+        .channels-section::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .messages-container::-webkit-scrollbar-track,
+        .channels-section::-webkit-scrollbar-track {
+            background: #2f3136;
+        }
+
+        .messages-container::-webkit-scrollbar-thumb,
+        .channels-section::-webkit-scrollbar-thumb {
+            background: #202225;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Login Modal -->
+        <div id="loginModal" class="login-modal">
+            <div class="login-form">
+                <h2 class="login-title">Welcome to Discord v2</h2>
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <input type="text" id="usernameInput" class="form-input" placeholder="Enter your username">
+                </div>
+                <button id="joinButton" class="form-button">Join Server</button>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="server-info">
+                <h3>Discord v2 Server</h3>
+            </div>
+            <div class="channels-section">
+                <div class="channel-category">Text Channels</div>
+                <ul id="channelsList" class="channel-list"></ul>
+                <button id="addChannelBtn" class="add-channel-btn">+ Add Channel</button>
+            </div>
+            <div class="user-area">
+                <img id="userAvatar" class="user-avatar" src="" alt="User Avatar">
+                <div class="user-info">
+                    <div id="currentUsername" class="username"></div>
+                    <div class="user-status">Online</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="channel-header">
+                <span class="channel-name"># <span id="currentChannelName">general</span></span>
+                <span id="channelDescription" class="channel-description"></span>
+            </div>
+            <div id="messagesContainer" class="messages-container"></div>
+            <div id="typingIndicator" class="typing-indicator" style="display: none;"></div>
+            <div class="input-container">
+                <textarea id="messageInput" class="message-input" placeholder="Type a message..." rows="1"></textarea>
+            </div>
+        </div>
+
+        <!-- Users Panel -->
+        <div class="users-panel">
+            <div class="users-section">
+                <div class="users-title">Online Users</div>
+                <div id="usersList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class DiscordClient {
+            constructor() {
+                this.socket = io();
+                this.currentUser = null;
+                this.currentChannel = 'general';
+                this.channels = new Map();
+                this.users = new Map();
+                this.typingUsers = new Set();
+                this.typingTimeout = null;
+                
+                this.initializeElements();
+                this.setupEventListeners();
+                this.setupSocketListeners();
+            }
+
+            initializeElements() {
+                this.loginModal = document.getElementById('loginModal');
+                this.usernameInput = document.getElementById('usernameInput');
+                this.joinButton = document.getElementById('joinButton');
+                this.channelsList = document.getElementById('channelsList');
+                this.messagesContainer = document.getElementById('messagesContainer');
+                this.messageInput = document.getElementById('messageInput');
+                this.usersList = document.getElementById('usersList');
+                this.currentChannelName = document.getElementById('currentChannelName');
+                this.channelDescription = document.getElementById('channelDescription');
+                this.currentUsername = document.getElementById('currentUsername');
+                this.userAvatar = document.getElementById('userAvatar');
+                this.typingIndicator = document.getElementById('typingIndicator');
+                this.addChannelBtn = document.getElementById('addChannelBtn');
+            }
+
+            setupEventListeners() {
+                this.joinButton.addEventListener('click', () => this.joinServer());
+                this.usernameInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.joinServer();
+                });
+
+                this.messageInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
+                });
+
+                this.messageInput.addEventListener('input', () => {
+                    this.handleTyping();
+                });
+
+                this.addChannelBtn.addEventListener('click', () => {
+                    this.createChannel();
+                });
+            }
+
+            setupSocketListeners() {
+                this.socket.on('user-data', (user) => {
+                    this.currentUser = user;
+                    this.currentUsername.textContent = user.username;
+                    this.userAvatar.src = user.avatar;
+                    this.loginModal.style.display = 'none';
+                });
+
+                this.socket.on('channels-list', (channels) => {
+                    this.renderChannels(channels);
+                    this.joinChannel(this.currentChannel);
+                });
+
+                this.socket.on('channel-messages', (data) => {
+                    this.renderMessages(data.messages);
+                });
+
+                this.socket.on('new-message', (message) => {
+                    this.addMessage(message);
+                });
+
+                this.socket.on('users-list', (users) => {
+                    this.renderUsers(users);
+                });
+
+                this.socket.on('user-joined', (user) => {
+                    this.showNotification(`${user.username} joined the server`);
+                });
+
+                this.socket.on('user-left', (user) => {
+                    this.showNotification(`${user.username} left the server`);
+                });
+
+                this.socket.on('new-channel', (channel) => {
+                    this.addChannel(channel);
+                });
+
+                this.socket.on('user-typing', (data) => {
+                    this.showTyping(data);
+                });
+
+                this.socket.on('user-stopped-typing', (data) => {
+                    this.hideTyping(data);
+                });
+            }
+
+            joinServer() {
+                const username = this.usernameInput.value.trim();
+                if (username) {
+                    this.socket.emit('join', { username });
+                }
+            }
+
+            joinChannel(channelId) {
+                this.currentChannel = channelId;
+                this.socket.emit('join-channel', channelId);
+                
+                // Update UI
+                document.querySelectorAll('.channel-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                
+                const channelElement = document.querySelector(`[data-channel="${channelId}"]`);
+                if (channelElement) {
+                    channelElement.classList.add('active');
+                    this.currentChannelName.textContent = channelElement.textContent.replace('#', '').trim();
+                }
+            }
+
+            sendMessage() {
+                const content = this.messageInput.value.trim();
+                if (content) {
+                    this.socket.emit('send-message', {
+                        channelId: this.currentChannel,
+                        content: content
+                    });
+                    this.messageInput.value = '';
+                    this.stopTyping();
+                }
+            }
+
+            handleTyping() {
+                this.socket.emit('typing-start', { channelId: this.currentChannel });
+                
+                clearTimeout(this.typingTimeout);
+                this.typingTimeout = setTimeout(() => {
+                    this.stopTyping();
+                }, 1000);
+            }
+
+            stopTyping() {
+                this.socket.emit('typing-stop', { channelId: this.currentChannel });
+            }
+
+            createChannel() {
+                const name = prompt('Enter channel name:');
+                if (name) {
+                    this.socket.emit('create-channel', {
+                        name: name,
+                        description: ''
+                    });
+                }
+            }
+
+            renderChannels(channels) {
+                this.channelsList.innerHTML = '';
+                channels.forEach(channel => {
+                    this.addChannel(channel);
+                });
+            }
+
+            addChannel(channel) {
+                const li = document.createElement('li');
+                li.className = 'channel-item';
+                li.setAttribute('data-channel', channel.id);
+                li.innerHTML = `
+                    <span class="channel-icon">#</span>
+                    <span>${channel.name}</span>
+                `;
+                li.addEventListener('click', () => this.joinChannel(channel.id));
+                this.channelsList.appendChild(li);
+            }
+
+            renderMessages(messages) {
+                this.messagesContainer.innerHTML = '';
+                messages.forEach(message => {
+                    this.addMessage(message);
+                });
+                this.scrollToBottom();
+            }
+
+            addMessage(message) {
+                const messageElement = document.createElement('div');
+                messageElement.className = 'message';
+                messageElement.innerHTML = `
+                    <img class="message-avatar" src="${message.avatar}" alt="${message.username}">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="message-author">${message.username}</span>
+                            <span class="message-timestamp">${this.formatTime(message.timestamp)}</span>
+                        </div>
+                        <div class="message-text">${this.escapeHtml(message.content)}</div>
+                    </div>
+                `;
+                this.messagesContainer.appendChild(messageElement);
+                this.scrollToBottom();
+            }
+
+            renderUsers(users) {
+                this.usersList.innerHTML = '';
+                users.forEach(user => {
+                    const userElement = document.createElement('div');
+                    userElement.className = 'user-item';
+                    userElement.innerHTML = `
+                        <img class="user-item-avatar" src="${user.avatar}" alt="${user.username}">
+                        <span class="user-item-name">${user.username}</span>
+                        <div class="status-indicator status-${user.status}"></div>
+                    `;
+                    this.usersList.appendChild(userElement);
+                });
+            }
+
+            showTyping(data) {
+                this.typingUsers.add(data.username);
+                this.updateTypingIndicator();
+            }
+
+            hideTyping(data) {
+                this.typingUsers.delete(data.username);
+                this.updateTypingIndicator();
+            }
+
+            updateTypingIndicator() {
+                if (this.typingUsers.size > 0) {
+                    const users = Array.from(this.typingUsers);
+                    let text = '';
+                    if (users.length === 1) {
+                        text = `${users[0]} is typing...`;
+                    } else if (users.length === 2) {
+                        text = `${users[0]} and ${users[1]} are typing...`;
+                    } else {
+                        text = `${users.slice(0, -1).join(', ')} and ${users[users.length - 1]} are typing...`;
+                    }
+                    this.typingIndicator.textContent = text;
+                    this.typingIndicator.style.display = 'block';
+                } else {
+                    this.typingIndicator.style.display = 'none';
+                }
+            }
+
+            showNotification(message) {
+                // Simple notification - could be enhanced with toast notifications
+                console.log('Notification:', message);
+            }
+
+            formatTime(timestamp) {
+                const date = new Date(timestamp);
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            scrollToBottom() {
+                this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+            }
+        }
+
+        // Initialize the Discord client
+        const discordClient = new DiscordClient();
+    </script>
+</body>
+</html>
